@@ -1,6 +1,6 @@
 [package]
 name = "pgphantom"
-version = "0.1.0"
+version = "0.1.5"
 edition = "2021"
 description = "PostgreSQL 16+ edge reverse proxy with TLS termination and JWT authentication"
 license = "MIT"

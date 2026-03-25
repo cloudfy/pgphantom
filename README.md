@@ -9,7 +9,6 @@ client ──TLS──► pgphantom ──► pg-primary
 ```
 
 ---
-
 ## Features
 
 - **TLS termination** — accept TLS from clients; connect to backends over plain TCP or TLS

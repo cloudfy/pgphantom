@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  # --------------------------------------------------------------------------
+  # PgPhantom — the edge proxy
+  # --------------------------------------------------------------------------
+  pgphantom:
+    build: .
+    image: pgphantom:dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./config.example.yaml:/etc/pgphantom/config.yaml:ro
+      # Mount TLS certs here for local dev (generate with: make certs)
+      - ./certs:/certs:ro
+    environment:
+      RUST_LOG: debug
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+      pg-replica:
+        condition: service_healthy
+      etcd:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------------
+  # Backend PostgreSQL 16 servers
+  # --------------------------------------------------------------------------
+  pg-primary:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pgphantom_svc
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: appdb
+    volumes:
+      - pg-primary-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pgphantom_svc -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pg-replica:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pgphantom_svc
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: analyticsdb
+    volumes:
+      - pg-replica-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pgphantom_svc -d analyticsdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --------------------------------------------------------------------------
+  # etcd — cluster config distribution (single node for local dev)
+  # --------------------------------------------------------------------------
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.12
+    environment:
+      ETCD_NAME: node0
+      ETCD_INITIAL_CLUSTER: "node0=http://etcd:2380"
+      ETCD_INITIAL_CLUSTER_STATE: new
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd:2380
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg-primary-data:
+  pg-replica-data:

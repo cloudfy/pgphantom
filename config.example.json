@@ -1,0 +1,57 @@
+{
+  "listen": {
+    "host": "0.0.0.0",
+    "port": 5432,
+    "tls": {
+      "enabled": true,
+      "cert_file": "/certs/server.crt",
+      "key_file": "/certs/server.key"
+    }
+  },
+  "auth": {
+    "methods": {
+      "scram_sha_256": true,
+      "md5": true,
+      "cleartext": false,
+      "oauthbearer": true
+    },
+    "mode": "relay",
+    "jwt": {
+      "jwks_uri": "https://auth.example.com/.well-known/jwks.json",
+      "issuer": "https://auth.example.com",
+      "audience": "pgphantom",
+      "refresh_interval_secs": 300,
+      "username_claim": "sub"
+    }
+  },
+  "routing": {
+    "mappings": [
+      { "database": "appdb", "backend": "primary" },
+      { "database": "analyticsdb", "backend": "replica" }
+    ],
+    "regex_rules": [],
+    "backends": {
+      "primary": {
+        "host": "pg-primary",
+        "port": 5432,
+        "tls": { "enabled": false }
+      },
+      "replica": {
+        "host": "pg-replica",
+        "port": 5432,
+        "tls": { "enabled": false }
+      }
+    }
+  },
+  "cluster": {
+    "enabled": false,
+    "etcd": {
+      "endpoints": ["http://etcd:2379"],
+      "prefix": "/pgphantom/config/"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "format": "text"
+  }
+}

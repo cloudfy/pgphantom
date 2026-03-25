@@ -1,0 +1,75 @@
+[package]
+name = "pgphantom"
+version = "0.1.0"
+edition = "2021"
+description = "PostgreSQL 16+ edge reverse proxy with TLS termination and JWT authentication"
+license = "MIT"
+repository = "https://github.com/cloudfy/pgphantom"
+
+[[bin]]
+name = "pgphantom"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec", "io"] }
+
+# TLS (pure Rust — no native OpenSSL dependency)
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+rustls-pemfile = "2"
+rustls-native-certs = "0.7"
+webpki-roots = "0.26"
+
+# Pin projection for stream enum
+pin-project-lite = "0.2"
+
+# Byte manipulation
+bytes = "1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Regex routing
+regex = "1"
+
+# JWT validation
+jsonwebtoken = "9"
+
+# HTTP client for JWKS fetch and STS calls (rustls-tls feature = no native OpenSSL)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# etcd for cluster config distribution
+etcd-client = "0.13"
+
+# Logging / tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Crypto primitives for SCRAM-SHA-256 backend auth
+sha2 = "0.10"
+hmac = "0.12"
+pbkdf2 = "0.12"
+rand = "0.8"
+base64 = "0.22"
+hex = "0.4"
+
+# Misc
+uuid = { version = "1", features = ["v4"] }
+dashmap = "5"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

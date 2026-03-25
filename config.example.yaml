@@ -1,0 +1,119 @@
+# PgPhantom configuration — annotated example
+# Rename to config.yaml and adjust values for your environment.
+# String values support ${ENV_VAR} substitution.
+
+# ---------------------------------------------------------------------------
+# Listener configuration
+# ---------------------------------------------------------------------------
+listen:
+  host: "0.0.0.0"
+  port: 5432
+  tls:
+    enabled: true
+    cert_file: "/certs/server.crt"
+    key_file: "/certs/server.key"
+
+# ---------------------------------------------------------------------------
+# Authentication configuration
+# ---------------------------------------------------------------------------
+auth:
+  methods:
+    scram_sha_256: true   # SCRAM-SHA-256 (recommended for relay mode)
+    md5: true             # MD5 Password (legacy, discouraged)
+    cleartext: false      # Cleartext password (only over TLS)
+    oauthbearer: true     # SASL OAUTHBEARER — required for jwt mode
+
+  # "relay"  — PgPhantom forwards the backend's auth challenge to the client.
+  #            Passwords are never seen by PgPhantom.
+  # "jwt"    — PgPhantom validates an OAUTHBEARER JWT from the client and then
+  #            authenticates to the backend using a service account or STS token.
+  mode: "relay"
+
+  # JWT validation settings (required when mode = "jwt")
+  jwt:
+    jwks_uri: "https://auth.example.com/.well-known/jwks.json"
+    issuer: "https://auth.example.com"
+    audience: "pgphantom"
+    refresh_interval_secs: 300
+    # Which JWT claim to use as the PostgreSQL username when connecting to backend.
+    username_claim: "sub"
+
+  # STS token exchange (optional, used when mode = "jwt" and no service_user on backend)
+  # Follows RFC 8693 (OAuth 2.0 Token Exchange).
+  # sts:
+  #   token_endpoint: "https://sts.example.com/token"
+  #   client_id: "pgphantom"
+  #   client_secret_env: "STS_CLIENT_SECRET"
+  #   audience: "internal-postgres"
+
+# ---------------------------------------------------------------------------
+# Routing configuration
+# ---------------------------------------------------------------------------
+routing:
+  # Mapping rules: evaluated first. Exact match on database and/or user.
+  mappings:
+    - database: "appdb"
+      backend: "primary"
+    - database: "analyticsdb"
+      backend: "replica"
+
+  # Regex rules: evaluated after mappings. Supports capture groups ($1, $2, …).
+  # regex_rules:
+  #   - match_database: "^prod_(.*)"
+  #     rewrite_database: "$1"
+  #     # backend_host can reference capture groups
+  #     backend_host: "$1-pg.internal.example.com"
+  #     backend_port: 5432
+  #     backend_tls:
+  #       enabled: false
+
+  # Named backends
+  backends:
+    primary:
+      host: "pg-primary"
+      port: 5432
+      tls:
+        enabled: false
+
+    replica:
+      host: "pg-replica"
+      port: 5432
+      tls:
+        enabled: false
+
+    # Example backend with TLS and service account (for JWT mode):
+    # secure-backend:
+    #   host: "secure-pg.internal"
+    #   port: 5432
+    #   tls:
+    #     enabled: true
+    #     ca_file: "/certs/internal-ca.crt"
+    #   service_user: "pgphantom_svc"
+    #   service_password_env: "BACKEND_PASSWORD"
+
+  # When no mapping or regex rule matches, reject the connection with a FATAL error.
+  # To allow a default fallback instead, set default_backend to a named backend.
+  # default_backend: "primary"
+
+# ---------------------------------------------------------------------------
+# Cluster configuration (multi-node deployment)
+# ---------------------------------------------------------------------------
+cluster:
+  enabled: false
+  # node_id defaults to $HOSTNAME if not set
+  # node_id: "node-1"
+  etcd:
+    endpoints:
+      - "http://etcd:2379"
+    # Key prefix used to store and retrieve config in etcd.
+    prefix: "/pgphantom/config/"
+    # tls:
+    #   enabled: true
+    #   ca_file: "/certs/etcd-ca.crt"
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging:
+  level: "info"   # trace | debug | info | warn | error
+  format: "text"  # text | json
